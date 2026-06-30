@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Scheduler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 420px;
+            width: 100%;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+        .card h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 0.4rem;
+        }
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .form-check input {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+        .form-check label {
+            font-weight: 400;
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 0;
+        }
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 1.5rem;
+        }
+        .forgot-password a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 1rem;
+            display: none;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        .register-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>Welcome Back</h1>
+        <p class="subtitle">Sign in to your account</p>
+
+        <div id="alert" class="alert"></div>
+        <div id="wsNotification" class="alert" style="display: none;"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+
+            <div class="form-check">
+                <input type="checkbox" id="remember_me" name="remember_me">
+                <label for="remember_me">Remember me</label>
+            </div>
+
+            <div class="forgot-password">
+                <a href="#" id="forgotPassword">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Sign In</button>
+        </form>
+
+        <div class="loading" id="loading">Signing in...</div>
+
+        <div class="register-link">
+            Don't have an account? <a href="/api/register/page/">Create one</a>
+        </div>
+    </div>
+</div>
+
+<div id="bookingNotification" style="display: none; position: fixed; top: 20px; right: 20px; background: #e74c3c; color: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4); z-index: 9999; max-width: 350px;">
+    <strong>⚠️ Slot Booked!</strong>
+    <div id="bookingNotificationText" style="margin-top: 0.3rem;"></div>
+</div>
+
+    <script>
+        const API_BASE = '/api/';
+        let ws = null;
+        let currentUser = null;
+
+        function showBookingNotification(bookerName, timeSlot) {
+            const notif = document.getElementById('bookingNotification');
+            const text = document.getElementById('bookingNotificationText');
+            text.innerHTML = `<strong>${bookerName}</strong> just booked <strong>${timeSlot}</strong>.<br>This slot is no longer available.`;
+            notif.style.display = 'block';
+            notif.style.animation = 'none';
+            notif.offsetHeight; // trigger reflow
+            notif.style.animation = 'slideDown 0.3s ease-out';
+            
+            setTimeout(() => {
+                notif.style.display = 'none';
+            }, 5000);
+        }
+
+        function connectWebSocket() {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+
+            const wsUrl = `ws://${window.location.host}/ws/slots/${new Date().toISOString().split('T')[0]}/?token=${token}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                console.log('WebSocket connected for real-time booking updates');
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket disconnected, will reconnect...');
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            if (data.type === 'booking_created') {
+                const booking = data.booking;
+                const bookerName = booking.booked_by_name || booking.booked_by;
+                const timeSlot = `${booking.start_time} - ${booking.end_time}`;
+                
+                // Check if this is my own booking
+                const myEmail = localStorage.getItem('user_email') || currentUser?.email;
+                if (booking.booked_by === myEmail) {
+                    console.log('My own booking confirmed:', booking);
+                    return;
+                }
+                
+                // Show notification for other users' bookings
+                showBookingNotification(bookerName, timeSlot);
+                
+                // Also show in alert area if visible
+                const wsNotif = document.getElementById('wsNotification');
+                if (wsNotif) {
+                    wsNotif.className = 'alert alert-warning';
+                    wsNotif.innerHTML = `<strong>⚠️ Real-time update:</strong> ${bookerName} booked ${timeSlot}`;
+                    wsNotif.style.display = 'block';
+                    setTimeout(() => {
+                        wsNotif.style.display = 'none';
+                    }, 4000);
+                }
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const alertDiv = document.getElementById('alert');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('remember_me').checked;
+
+            // Store email for WebSocket comparison
+            localStorage.setItem('user_email', email);
+
+            // Client-side validation
+            if (!email) {
+                showAlert('Please enter your email address.', 'error');
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showAlert('Please enter a valid email address.', 'error');
+                return;
+            }
+
+            if (!password) {
+                showAlert('Please enter your password.', 'error');
+                return;
+            }
+
+            if (password.length < 8) {
+                showAlert('Password must be at least 8 characters.', 'error');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            alertDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        remember_me: rememberMe
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    let errorMsg = 'Login failed. Please try again.';
+                    if (data.error) {
+                        errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+                    }
+                    showAlert(errorMsg, 'error');
+                    return;
+                }
+
+                // Login successful
+                showAlert('Login successful! Redirecting...', 'success');
+
+                // Store tokens
+                if (data.access) {
+                    localStorage.setItem('access_token', data.access);
+                }
+                if (data.refresh) {
+                    localStorage.setItem('refresh_token', data.refresh);
+                }
+                if (data.user) {
+                    localStorage.setItem('user_email', data.user.email);
+                    currentUser = data.user;
+                }
+
+                // Connect WebSocket for real-time updates
+                connectWebSocket();
+
+                // Redirect to dashboard after short delay
+                setTimeout(() => {
+                    window.location.href = '/api/test-ui/';
+                }, 1000);
+
+            } catch (error) {
+                showAlert('Network error. Please check your connection and try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        // Forgot password handler
+        document.getElementById('forgotPassword').addEventListener('click', function(e) {
+            e.preventDefault();
+            const email = prompt('Enter your email address for password reset:');
+            if (email) {
+                handlePasswordReset(email);
+            }
+        });
+
+        async function handlePasswordReset(email) {
+            try {
+                const response = await fetch(`${API_BASE}password-reset/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert('If an account with that email exists, a password reset link has been sent.');
+                } else {
+                    alert('Error: ' + (data.error || 'Please try again.'));
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.style.display = 'block';
+        }
+
+        // Add CSS for notification animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from { transform: translateY(-20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

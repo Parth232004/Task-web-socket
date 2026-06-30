@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Scheduler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 480px;
+            width: 100%;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+        .card h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 0.4rem;
+        }
+        input[type="email"],
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 1rem;
+            display: none;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        .login-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        .password-requirements {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Create Account</h1>
+            <p class="subtitle">Sign up to get started</p>
+
+            <div id="alert" class="alert"></div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required autocomplete="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="Enter your first name" required autocomplete="given-name">
+                </div>
+
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Enter your last name" required autocomplete="family-name">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Create a password (min 8 characters)" required autocomplete="new-password" minlength="8">
+                    <p class="password-requirements">Must be at least 8 characters long.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">Create Account</button>
+            </form>
+
+            <div class="loading" id="loading">Creating your account...</div>
+
+            <div class="login-link">
+                Already have an account? <a href="/api/login/page/">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/';
+
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const alertDiv = document.getElementById('alert');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+
+            const email = document.getElementById('email').value.trim();
+            const firstName = document.getElementById('first_name').value.trim();
+            const lastName = document.getElementById('last_name').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            // Client-side validation
+            if (!email) {
+                showAlert('Please enter your email address.', 'error');
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showAlert('Please enter a valid email address.', 'error');
+                return;
+            }
+
+            if (!firstName) {
+                showAlert('Please enter your first name.', 'error');
+                return;
+            }
+
+            if (!lastName) {
+                showAlert('Please enter your last name.', 'error');
+                return;
+            }
+
+            if (!password) {
+                showAlert('Please enter a password.', 'error');
+                return;
+            }
+
+            if (password.length < 8) {
+                showAlert('Password must be at least 8 characters.', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showAlert('Passwords do not match.', 'error');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            alertDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}register/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        first_name: firstName,
+                        last_name: lastName,
+                        password: password,
+                        confirm_password: confirmPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    let errorMsg = 'Registration failed. Please try again.';
+                    if (data.error) {
+                        if (typeof data.error === 'string') {
+                            errorMsg = data.error;
+                        } else if (data.error.email) {
+                            errorMsg = data.error.email[0];
+                        } else if (data.error.password) {
+                            errorMsg = data.error.password[0];
+                        } else if (data.error.confirm_password) {
+                            errorMsg = data.error.confirm_password[0];
+                        } else {
+                            errorMsg = JSON.stringify(data.error);
+                        }
+                    }
+                    showAlert(errorMsg, 'error');
+                    return;
+                }
+
+                // Registration successful
+                showAlert('Account created successfully! Redirecting...', 'success');
+
+                // Store tokens
+                if (data.access) {
+                    localStorage.setItem('access_token', data.access);
+                }
+                if (data.refresh) {
+                    localStorage.setItem('refresh_token', data.refresh);
+                }
+
+                // Redirect to dashboard after short delay
+                setTimeout(() => {
+                    window.location.href = '/api/test-ui/';
+                }, 1000);
+
+            } catch (error) {
+                showAlert('Network error. Please check your connection and try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.textContent = message;
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

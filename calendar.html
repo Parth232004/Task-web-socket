@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Calendar - Live Schedule</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.3rem;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6b6b;
+        }
+        .status-dot.connected {
+            background: #51cf66;
+            box-shadow: 0 0 8px #51cf66;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        input, select {
+            padding: 0.6rem 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: white;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: #5a6fd6;
+            transform: translateY(-1px);
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .calendar-header {
+            background: #2c3e50;
+            color: white;
+            padding: 0.8rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .calendar-day {
+            background: white;
+            min-height: 120px;
+            padding: 0.5rem;
+            position: relative;
+        }
+        .calendar-day.other-month {
+            background: #f8f9fa;
+        }
+        .calendar-day.today {
+            background: #fff8e1;
+        }
+        .day-number {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            margin-bottom: 0.3rem;
+        }
+        .today .day-number {
+            color: #e67e22;
+        }
+        .booking-chip {
+            background: #667eea;
+            color: white;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 0.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .booking-chip:hover {
+            background: #5a6fd6;
+            transform: scale(1.02);
+        }
+        .booking-chip.booked-by-me {
+            background: #27ae60;
+        }
+        .booking-chip.booked-for-me {
+            background: #e74c3c;
+        }
+        .booking-chip.new {
+            animation: pulse 0.5s ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .booking-chip.cancelled {
+            background: #95a5a6;
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal h2 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        .modal-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .modal-info p {
+            margin-bottom: 0.5rem;
+        }
+        .modal-info strong {
+            color: #555;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        .user-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 2000;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast.success {
+            background: #27ae60;
+        }
+        .toast.info {
+            background: #3498db;
+        }
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        .legend-color.booked-by-me {
+            background: #27ae60;
+        }
+        .legend-color.booked-for-me {
+            background: #e74c3c;
+        }
+        .legend-color.other {
+            background: #667eea;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .current-month {
+            font-weight: 600;
+            font-size: 1.1rem;
+            min-width: 150px;
+            text-align: center;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #7f8c8d;
+        }
+        .notification-banner {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+            z-index: 3000;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
+        }
+        .notification-banner.show {
+            display: block;
+        }
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Real-Time Calendar</h1>
+            <p>See scheduled meetings live across multiple users</p>
+            <div class="connection-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="user-selector">
+                <div class="user-avatar" id="userAvatar">?</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;" id="userName">Not logged in</div>
+                    <div style="font-size: 0.8rem; color: #7f8c8d;" id="userEmail">-</div>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" id="prevMonth"><</button>
+                <span class="current-month" id="currentMonth">June 2026</span>
+                <button class="btn btn-secondary" id="nextMonth">></button>
+                <button class="btn" id="todayBtn">Today</button>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color booked-by-me"></div>
+                    <span>Booked by me</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color booked-for-me"></div>
+                    <span>Booked for me</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color other"></div>
+                    <span>Other users</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid">
+            <div class="calendar-header">Sun</div>
+            <div class="calendar-header">Mon</div>
+            <div class="calendar-header">Tue</div>
+            <div class="calendar-header">Wed</div>
+            <div class="calendar-header">Thu</div>
+            <div class="calendar-header">Fri</div>
+            <div class="calendar-header">Sat</div>
+        </div>
+    </div>
+
+    <!-- Booking Detail Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h2 id="modalTitle">Booking Details</h2>
+            <div class="modal-info" id="modalInfo"></div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="cancelBookingBtn" style="display: none;">Cancel Booking</button>
+                <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Booking Conflict Notification Banner -->
+    <div class="notification-banner" id="notificationBanner">
+        <strong>⚠️ Slot Booked!</strong>
+        <span id="notificationText"></span>
+    </div>
+
+    <script>
+        // ==================== Configuration ====================
+        const API_BASE = '/api/';
+        let currentUser = null;
+        let accessToken = localStorage.getItem('access_token');
+        let currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        let wsConnections = {};
+        let bookingsCache = {};  // Cache bookings by date string
+        let notificationTimeout = null;
+
+        // ==================== Initialization ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            setupEventListeners();
+            renderCalendar();
+            
+            // If logged in, connect WebSockets
+            if (currentUser && accessToken) {
+                connectAllWebSockets();
+            }
+        });
+
+        function setupEventListeners() {
+            document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+            document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+            document.getElementById('todayBtn').addEventListener('click', goToToday);
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+            document.getElementById('cancelBookingBtn').addEventListener('click', cancelBooking);
+            document.getElementById('modalOverlay').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeModal();
+            });
+        }
+
+        // ==================== Authentication ====================
+        async function checkAuth() {
+            if (!accessToken) {
+                updateUserUI(null);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}me/`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data;
+                    updateUserUI(data);
+                } else {
+                    accessToken = null;
+                    localStorage.removeItem('access_token');
+                    updateUserUI(null);
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                updateUserUI(null);
+            }
+        }
+
+        function updateUserUI(user) {
+            const avatar = document.getElementById('userAvatar');
+            const name = document.getElementById('userName');
+            const email = document.getElementById('userEmail');
+            
+            if (user) {
+                avatar.textContent = (user.first_name?.[0] || user.email[0]).toUpperCase();
+                name.textContent = user.get_full_name || user.email;
+                email.textContent = user.email;
+            } else {
+                avatar.textContent = '?';
+                name.textContent = 'Not logged in';
+                email.textContent = 'Login to see real-time updates';
+            }
+        }
+
+        // ==================== WebSocket Management ====================
+        function connectAllWebSockets() {
+            if (!currentUser || !accessToken) return;
+
+            // Connect to user-specific room for all bookings
+            connectUserWebSocket(currentUser.id);
+
+            // Connect to date-specific rooms for current month view
+            const dates = getDatesInMonth(currentYear, currentMonth);
+            dates.forEach(date => {
+                connectDateWebSocket(date);
+            });
+        }
+
+        function connectDateWebSocket(dateStr) {
+            if (wsConnections[`date_${dateStr}`]) return;
+            
+            const wsUrl = `ws://${window.location.host}/ws/slots/${dateStr}/?token=${accessToken}`;
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log(`WS connected for date: ${dateStr}`);
+                updateConnectionStatus(true);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data, dateStr);
+            };
+            
+            ws.onclose = () => {
+                console.log(`WS disconnected for date: ${dateStr}`);
+                delete wsConnections[`date_${dateStr}`];
+                updateConnectionStatus(false);
+                // Reconnect after 3 seconds
+                setTimeout(() => connectDateWebSocket(dateStr), 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error(`WS error for date ${dateStr}:`, error);
+            };
+            
+            wsConnections[`date_${dateStr}`] = ws;
+        }
+
+        function connectUserWebSocket(userId) {
+            if (wsConnections[`user_${userId}`]) return;
+            
+            const wsUrl = `ws://${window.location.host}/ws/user/${userId}/?token=${accessToken}`;
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log(`WS connected for user: ${userId}`);
+                updateConnectionStatus(true);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data, null, userId);
+            };
+            
+            ws.onclose = () => {
+                console.log(`WS disconnected for user: ${userId}`);
+                delete wsConnections[`user_${userId}`];
+                updateConnectionStatus(false);
+                setTimeout(() => connectUserWebSocket(userId), 3000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error(`WS error for user ${userId}:`, error);
+            };
+            
+            wsConnections[`user_${userId}`] = ws;
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Live - Real-time updates active';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Reconnecting...';
+            }
+        }
+
+        function handleWebSocketMessage(data, dateStr, userId = null) {
+            console.log('WS message:', data);
+            
+            switch (data.type) {
+                case 'initial_state':
+                    handleInitialState(data);
+                    break;
+                case 'booking_created':
+                    handleBookingCreated(data);
+                    break;
+                case 'booking_cancelled':
+                    handleBookingCancelled(data);
+                    break;
+                case 'slot_booked':
+                    handleSlotBooked(data);
+                    break;
+                case 'slot_unbooked':
+                    handleSlotUnbooked(data);
+                    break;
+                case 'pong':
+                    // Keep-alive response
+                    break;
+            }
+        }
+
+        function handleInitialState(data) {
+            if (data.room_type === 'date' && data.slots) {
+                // Cache slots for this date
+                bookingsCache[data.date] = data.slots;
+                renderCalendar();
+            } else if (data.room_type === 'user' && data.bookings) {
+                // Cache user's bookings
+                data.bookings.forEach(booking => {
+                    const dateKey = booking.date;
+                    if (!bookingsCache[dateKey]) {
+                        bookingsCache[dateKey] = [];
+                    }
+                    // Add to cache if not already present
+                    const exists = bookingsCache[dateKey].some(b => b.booking_id === booking.id);
+                    if (!exists) {
+                        bookingsCache[dateKey].push({
+                            id: booking.id,
+                            user_id: booking.booked_user_id,
+                            user_email: booking.booked_user_email,
+                            user_name: booking.booked_user_name,
+                            start_time: booking.start_time,
+                            end_time: booking.end_time,
+                            booking_id: booking.id,
+                            booking_title: booking.title,
+                            booked_by: booking.booker_email,
+                            booked_by_name: booking.booker_name,
+                            description: booking.description,
+                        });
+                    }
+                });
+                renderCalendar();
+            }
+        }
+
+        function handleBookingCreated(data) {
+            const booking = data.booking;
+            const dateKey = booking.date;
+            const bookerName = booking.booked_by_name || booking.booked_by;
+            const isMyBooking = currentUser && booking.booked_by === currentUser.email;
+            
+            if (!bookingsCache[dateKey]) {
+                bookingsCache[dateKey] = [];
+            }
+            
+            // Add to cache
+            const exists = bookingsCache[dateKey].some(b => b.booking_id === booking.id);
+            if (!exists) {
+                bookingsCache[dateKey].push({
+                    id: booking.id,
+                    user_id: booking.booked_user_id,
+                    user_email: booking.booked_user_email,
+                    user_name: booking.booked_user_name,
+                    start_time: booking.start_time,
+                    end_time: booking.end_time,
+                    booking_id: booking.id,
+                    booking_title: booking.title,
+                    booked_by: booking.booker_email,
+                    booked_by_name: booking.booker_name,
+                    description: booking.description,
+                    is_new: true,
+                });
+            }
+            
+            renderCalendar();
+            
+            // Show notification based on who booked
+            if (isMyBooking) {
+                showToast(`You booked: ${booking.title} (${booking.start_time} - ${booking.end_time})`, 'success');
+            } else {
+                // Another user booked - show prominent notification
+                showNotificationBanner(
+                    `${bookerName} booked ${booking.start_time} - ${booking.end_time} on ${dateKey}`
+                );
+            }
+            
+            // Remove 'new' flag after animation
+            setTimeout(() => {
+                const slot = bookingsCache[dateKey]?.find(b => b.booking_id === booking.id);
+                if (slot) slot.is_new = false;
+            }, 600);
+        }
+
+        function handleBookingCancelled(data) {
+            const dateKey = data.date;
+            
+            if (bookingsCache[dateKey]) {
+                bookingsCache[dateKey] = bookingsCache[dateKey].filter(
+                    b => b.booking_id !== data.booking_id
+                );
+            }
+            
+            renderCalendar();
+            showToast(`Booking cancelled on ${data.date}`, 'info');
+        }
+
+        function handleSlotBooked(data) {
+            // Legacy handler - update cache and re-render
+            renderCalendar();
+        }
+
+        function handleSlotUnbooked(data) {
+            // Legacy handler - update cache and re-render
+            renderCalendar();
+        }
+
+        // ==================== Calendar Rendering ====================
+        function getDatesInMonth(year, month) {
+            const dates = [];
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            
+            // Add days from previous month
+            const startDay = firstDay.getDay();
+            for (let i = startDay - 1; i >= 0; i--) {
+                const d = new Date(year, month, -i);
+                dates.push(formatDate(d));
+            }
+            
+            // Add days of current month
+            for (let d = new Date(year, month, 1); d <= lastDay; d.setDate(d.getDate() + 1)) {
+                dates.push(formatDate(d));
+            }
+            
+            // Add days from next month to fill grid
+            const remaining = 42 - dates.length;
+            for (let i = 1; i <= remaining; i++) {
+                const d = new Date(year, month + 1, i);
+                dates.push(formatDate(d));
+            }
+            
+            return dates;
+        }
+
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+            connectAllWebSockets();
+        }
+
+        function goToToday() {
+            const today = new Date();
+            currentMonth = today.getMonth();
+            currentYear = today.getFullYear();
+            renderCalendar();
+            connectAllWebSockets();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            document.getElementById('currentMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            
+            // Keep headers
+            const headers = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            let html = headers.map(h => `<div class="calendar-header">${h}</div>`).join('');
+            
+            const dates = getDatesInMonth(currentYear, currentMonth);
+            const today = formatDate(new Date());
+            
+            dates.forEach(dateStr => {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                const date = new Date(y, m - 1, d);
+                const isOtherMonth = date.getMonth() !== currentMonth;
+                const isToday = dateStr === today;
+                
+                const bookings = bookingsCache[dateStr] || [];
+                
+                let bookingChips = '';
+                bookings.forEach(booking => {
+                    const chipClass = getBookingChipClass(booking);
+                    const newClass = booking.is_new ? 'new' : '';
+                    bookingChips += `
+                        <div class="booking-chip ${chipClass} ${newClass}" 
+                             data-booking-id="${booking.booking_id}"
+                             data-date="${dateStr}"
+                             onclick="showBookingDetail(${booking.booking_id}, '${dateStr}')"
+                             title="${booking.booking_title}: ${booking.start_time} - ${booking.end_time}">
+                            ${booking.start_time} ${booking.booking_title}
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="calendar-day ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+                        <div class="day-number">${d}</div>
+                        ${bookingChips}
+                    </div>
+                `;
+            });
+            
+            grid.innerHTML = html;
+        }
+
+        function getBookingChipClass(booking) {
+            if (!currentUser) return 'other';
+            
+            if (booking.booked_by === currentUser.email) {
+                return 'booked-by-me';
+            } else if (booking.user_email === currentUser.email || booking.booked_user === currentUser.email) {
+                return 'booked-for-me';
+            }
+            return 'other';
+        }
+
+        // ==================== Booking Detail Modal ====================
+        let selectedBooking = null;
+
+        function showBookingDetail(bookingId, dateStr) {
+            const bookings = bookingsCache[dateStr] || [];
+            selectedBooking = bookings.find(b => b.booking_id === bookingId);
+            
+            if (!selectedBooking) return;
+            
+            const modalInfo = document.getElementById('modalInfo');
+            const cancelBtn = document.getElementById('cancelBookingBtn');
+            
+            const isMyBooking = currentUser && selectedBooking.booked_by === currentUser.email;
+            const isForMe = currentUser && (selectedBooking.user_email === currentUser.email || selectedBooking.booked_user === currentUser.email);
+            
+            modalInfo.innerHTML = `
+                <p><strong>Title:</strong> ${selectedBooking.booking_title || 'Meeting'}</p>
+                <p><strong>Date:</strong> ${dateStr}</p>
+                <p><strong>Time:</strong> ${selectedBooking.start_time} - ${selectedBooking.end_time}</p>
+                <p><strong>Booked by:</strong> ${selectedBooking.booked_by_name || selectedBooking.booked_by}</p>
+                <p><strong>For:</strong> ${selectedBooking.user_name || selectedBooking.user_email}</p>
+                ${selectedBooking.description ? `<p><strong>Description:</strong> ${selectedBooking.description}</p>` : ''}
+            `;
+            
+            // Show cancel button only if current user is the booker
+            cancelBtn.style.display = (isMyBooking && accessToken) ? 'block' : 'none';
+            
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            selectedBooking = null;
+        }
+
+        async function cancelBooking() {
+            if (!selectedBooking || !accessToken) return;
+            
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}bookings/${selectedBooking.booking_id}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    showToast('Booking cancelled successfully', 'success');
+                    closeModal();
+                    // Refresh calendar
+                    renderCalendar();
+                } else {
+                    const data = await response.json();
+                    showToast(`Error: ${data.error || 'Failed to cancel booking'}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== Toast Notifications ====================
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==================== Cleanup ====================
+        window.addEventListener('beforeunload', () => {
+            Object.values(wsConnections).forEach(ws => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
