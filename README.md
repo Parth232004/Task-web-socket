@@ -48,7 +48,7 @@ curl http://localhost:8000/api/availabilities/suggest_slots/?user_id=1&duration=
 ```bash
 curl -X POST http://localhost:8000/api/bookings/ \
   -H "Content-Type: application/json" \
-  -d '{"booked_user": 1, "date": "2026-06-30", "start_time": "09:00:00", "end_time": "10:00:00", "title": "Morning meeting"}'
+  -d '{"booked_user": 1, "date": "2026-07-01", "start_time": "09:00:00", "end_time": "10:00:00", "title": "Morning meeting"}'
 ```
 
 ## Setup

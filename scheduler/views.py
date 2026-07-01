@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 from pathlib import Path
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -13,6 +13,9 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 import datetime
 from .models import UserProfile, Availability, Booking
+
+if TYPE_CHECKING:
+    from accounts.models import CustomUser
 
 User = get_user_model()
 from .serializers import (
@@ -515,17 +518,23 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Invalid parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if slot exists and is available (with transaction to prevent race conditions)
+        # If the slot doesn't exist, create it automatically to support universal 9-5 year-round booking
         from django.db import transaction
         try:
             with transaction.atomic():
-                availability = Availability.objects.select_for_update().get(
+                availability, created = Availability.objects.get_or_create(
                     user=user,
                     date=date,
                     start_time=start_time,
                     end_time=end_time,
-                    is_booked=False
+                    defaults={'is_booked': False}
                 )
-        except Availability.DoesNotExist:
+                if not created and availability.is_booked:
+                    return Response(
+                        {'error': 'Slot not available. Use suggest_slots to find available slots.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        except Exception:
             return Response(
                 {'error': 'Slot not available. Use suggest_slots to find available slots.'},
                 status=status.HTTP_400_BAD_REQUEST
